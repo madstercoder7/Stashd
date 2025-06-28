@@ -2,3 +2,4 @@ Flask
 Flask-SQLAlchemy
 python-dotenv
 Flask-WTF
+email_validator
