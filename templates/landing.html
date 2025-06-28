@@ -1,15 +1,7 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="static/styles.css">
-    <title>Stashd - Personal Finance Tracker</title>
-</head>
-<body>
-    <div class="container">
-        <h1>Welcome to Stashd</h1>
-        <p>Our goal is to make your pockets as Stashd as possible!</p>
-    </div>
-</body>
-</html>
+{% extends "layout.html" %}
+{% block title %}Personal Finance Tracker{% endblock %} 
+
+{% block content %}
+<h1>Welcome to Stashd</h1>
+<p>Our goal is to make your pockets as Stashd as possible!</p>
+{% endblock %}

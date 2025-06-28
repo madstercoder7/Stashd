@@ -32,6 +32,7 @@ class User(db.Model, UserMixin):
 
 class Transaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     date = db.Column(db.DateTime, default=datetime.now())
     description = db.Column(db.String(100), nullable=False)
     category = db.Column(db.String(50), nullable=False)
@@ -60,10 +61,8 @@ class LoginForm(FlaskForm):
     submit = SubmitField("Login")
 
 @app.route("/")
-def index():
-    transactions = Transaction.query.order_by(Transaction.date.desc()).all()
-    balance = sum(t.amount if t.type == "income" else -t.amount for t in transactions)
-    return render_template("landing.html", transactions=transactions, balance=balance)
+def home():
+    return render_template("landing.html")
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
@@ -111,18 +110,21 @@ def login():
 
 @app.route("/dashboard", methods=["POST", "GET"])
 def dashboard():
+    transactions = Transaction.query.filter_by(user_id=current_user.id).order_by(Transaction.date.desc()).all()
+    balance = sum(t.amount if t.type == "income" else -t.amount for t in transactions)
+    return render_template("dashboard.html", transactions=transactions, balance=balance)
 
-    return render_template("dashboard.html")
 @app.route("/add", methods=["POST"])
+@login_required
 def add_transaction():
     desc = request.form["description"]
     category = request.form["category"]
     amount = float(request.form["amount"])
     ttype = request.form["type"]
-    new_t = Transaction(description=desc, category=category, amount=amount, type=ttype)
+    new_t = Transaction(description=desc, category=category, amount=amount, type=ttype, user_id=current_user.id)
     db.session.add(new_t)
     db.session.commit()
-    return redirect(url_for("index"))
+    return redirect(url_for("dashboard"))
 
 
 if __name__ == "__main__":

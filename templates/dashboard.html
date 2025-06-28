@@ -1,0 +1,53 @@
+{% extends "layout.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<h2>Welcome, {{ current_user.username }}</h2>
+<h4 class="mt-3">Your Balance: ${{ balance }}</h4>
+
+<hr>
+<h5>Add Transaction</h5>
+<form action="{{ url_for('add_transaction') }}" method="post" class="mb-4">
+    <div class="mb-3">
+        <input type="text" name="description" class="form-control" placeholder="Description" required>
+    </div>
+    <div class="mb-3">
+        <input type="text" name="category" class="form-control" placeholder="Category" required>
+    </div>
+    <div class="mb-3">
+        <input type="number" step="0.01" name="amount" class="form-control" placeholder="Amount" required>
+    </div>
+    <div class="mb-3">
+        <select name="type" class="form-select" required>
+            <option value="income">Income</option>
+            <option value="expense">Expense</option>
+        </select>
+    </div>
+    <button type="submit" class="btn btn-success">Add Transaction</button>
+</form>
+
+<hr>
+<h5>Your Recent Transactions</h5>
+<table class="table table-dark table-striped">
+    <thead>
+        <tr>
+            <th>Date</th>
+            <th>Description</th>
+            <th>Category</th>
+            <th>Amount</th>
+            <th>Type</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for t in transactions %}
+        <tr>
+            <td>{{ t.date.strftime('%Y-%m-%d %H:%M') }}</td>
+            <td>{{ t.description }}</td>
+            <td>{{ t.categorey }}</td>
+            <td>{{ t.amount }}</td>
+            <td>{{ t.type }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
