@@ -12,7 +12,12 @@
         <input type="text" name="description" class="form-control" placeholder="Description" required>
     </div>
     <div class="mb-3">
-        <input type="text" name="category" class="form-control" placeholder="Category" required>
+        <select name="label" class="form-select">
+            <option value="">Select Label / Goal</option>
+            {% for goal in goals %}
+                <option value="{{ goal.name }}">{{ goal.name }}</option>
+            {% endfor %}
+        </select>
     </div>
     <div class="mb-3">
         <input type="number" step="0.01" name="amount" class="form-control" placeholder="Amount" required>
@@ -33,9 +38,10 @@
         <tr>
             <th>Date</th>
             <th>Description</th>
-            <th>Category</th>
+            <th>Label</th>
             <th>Amount</th>
             <th>Type</th>
+            <th></th>
         </tr>
     </thead>
     <tbody>
@@ -43,7 +49,7 @@
         <tr>
             <td>{{ t.date.strftime('%Y-%m-%d %H:%M') }}</td>
             <td>{{ t.description }}</td>
-            <td>{{ t.category }}</td>
+            <td>{{ t.label }}</td>
             <td>{{ t.amount }}</td>
             <td>{{ t.type }}</td>
             <td>

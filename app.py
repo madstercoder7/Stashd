@@ -38,9 +38,17 @@ class Transaction(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     date = db.Column(db.DateTime, default=datetime.now())
     description = db.Column(db.String(100), nullable=False)
-    category = db.Column(db.String(50), nullable=False)
+    label = db.Column(db.String(100))
     amount = db.Column(db.Float, nullable=False)
     type = db.Column(db.String(10), nullable=False)
+
+class Goal(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    target_amount = db.Column(db.Float, nullable=False)
+    saved_amount = db.Column(db.Float, default=0)
+    status = db.Column(db.String(20), default="active")
 
 with app.app_context():
     db.create_all()
@@ -114,7 +122,28 @@ def login():
 def dashboard():
     transactions = Transaction.query.filter_by(user_id=current_user.id).order_by(Transaction.date.desc()).all()
     balance = sum(t.amount if t.type == "income" else -t.amount for t in transactions)
-    return render_template("dashboard.html", transactions=transactions, balance=balance)
+    goals = Goal.query.filter_by(user_id=current_user.id).all()
+    return render_template("dashboard.html", transactions=transactions, balance=balance, goals=goals)
+
+@app.route("/goals", methods=["GET", "POST"])
+def goals():
+    if request.method == "POST":
+        name = request.form["name"]
+        target = float(request.form["target_amount"])
+        goal = Goal(name=name, target_amount=target, user_id=current_user.id)
+        db.session.add(goal)
+        db.session.commit()
+        flash("Goal created successfully", "success")
+        return redirect(url_for("goals"))
+    
+    user_goals = Goal.query.filter_by(user_id=current_user.id).all()
+    for goal in user_goals:
+        if goal.target_amount > 0:
+            goal.progress = round((goal.saved_amount / goal.target_amount) * 100, 1)
+        else:
+            goal.progress = 0
+
+    return render_template("goals.html", goals=user_goals)
 
 @app.route("/profile")
 def profile():
@@ -132,12 +161,21 @@ def logout():
 @login_required
 def add_transaction():
     desc = request.form["description"]
-    category = request.form["category"]
+    label = request.form["label"]
     amount = float(request.form["amount"])
     ttype = request.form["type"]
-    new_t = Transaction(description=desc, category=category, amount=amount, type=ttype, user_id=current_user.id)
+
+    new_t = Transaction(description=desc, label=label, amount=amount, type=ttype, user_id=current_user.id)
     db.session.add(new_t)
     db.session.commit()
+
+    goal = Goal.query.filter_by(user_id=current_user.id, name=label).first()
+    if goal and ttype == "income":
+        goal.saved_amount += amount
+        if goal.saved_amount >= goal.target_amount:
+            goal.status = "completed"
+        db.session.commit()
+
     return redirect(url_for("dashboard"))
 
 @app.route("/delete/<int:tid>", methods=["GET", "POST"])

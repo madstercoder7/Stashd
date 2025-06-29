@@ -1,0 +1,49 @@
+{% extends "layout.html" %}
+{% block title %}Goals{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">My Saving Goals</h2>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <h5 class="card-title">Create a New Goal</h5>
+        <form action="{{ url_for('goals') }}" method="post">
+            <div class="mb-3">
+                <label for="name" class="form-label">Goal Name</label>
+                <input type="text" name="name" id="name" class="form-control" placeholder="eg New Laptop" required>
+            </div>
+            <div class="mb-3">
+                <label for="target_amount" class="form-label">Target Amount ($)</label>
+                <input type="number" name="target_amount" id="target_amount" step="0.01" class="form-control" placeholder="eg 1500" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Add Goal</button>
+        </form>
+    </div>
+</div>
+
+{% if goals %}
+    <h4 class="mb-3">Your Goals</h4>
+    {% for goal in goals %}
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title">{{ goal.name }}</h5>
+                <p class="card-text">
+                    Target: ${{ goal.target_amount }}<br>
+                    Saved: ${{ goal.saved_amount }}<br>
+                    Status: <span class="badge {{ 'bg-success' if goal.status == 'completed' else 'bg-secondary' }}">{{ goal.status.capitalize() }}</span>
+                </p>
+                <div class="progress mb-2">
+                    <div class="progress-bar {{ 'bg-success' if goal.status == 'completed' else 'bg-primary' }}"
+                        role="progressbar"
+                        style="width: {{ goal.progress|int }}%">
+                    {{ goal.progress|int }}%
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endfor %}
+{% else %}
+    <p>You dont have any goals yet, start adding one</p>
+{% endif %}
+
+{% endblock %}
