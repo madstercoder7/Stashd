@@ -145,6 +145,14 @@ def goals():
 
     return render_template("goals.html", goals=user_goals)
 
+@app.route("/delete/<int:gid>", methods=["GET", "POST"])
+def delete_goal(gid):
+    goal = Goal.query.filter_by(id=gid, user_id=current_user.id).first_or_404()
+    db.session.delete(goal)
+    db.session.commit()
+    flash("Goal deleted", "info")
+    return redirect(url_for("goals"))
+
 @app.route("/profile")
 def profile():
     return render_template("profile.html", user=current_user)
