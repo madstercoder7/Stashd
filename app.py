@@ -178,8 +178,23 @@ def dashboard():
             db.session.commit()
             flash("Goal created successfully", "success")
             return redirect(url_for("dashboard"))
-        
-    transactions = Transaction.query.filter_by(user_id=current_user.id).order_by(Transaction.date.desc()).all()
+
+    query = Transaction.query.filter_by(user_id=current_user.id)
+    start_date = request.args.get("start_date")
+    end_date = request.args.get("end_date")
+    ttype = request.args.get("type")
+    search = request.args.get("query")
+
+    if start_date:
+        query = query.filter(Transaction.date >= start_date)
+    if end_date:
+        query = query.filter(Transaction.date <= end_date)
+    if ttype:
+        query = query.filter(Transaction.type == ttype)
+    if search:
+        query = query.filter(Transaction.description.ilike(f"%{search.strip().lower()}%"))
+
+    transactions = query.order_by(Transaction.date.desc()).all()
     balance = sum(t.amount if t.type == "income" else -t.amount for t in transactions)
     goals = Goal.query.filter_by(user_id=current_user.id).all()
     for goal in goals:

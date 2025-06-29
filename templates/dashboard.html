@@ -51,6 +51,28 @@
 
 <hr>
 
+<form action="{{ url_for('dashboard') }}" method="get" class="row g-2 mb-4">
+    <div class="col-md-3">
+        <input type="date" name="start_date" class="form-control" placeholder="Start Date">
+    </div>
+    <div class="col-md-3">
+        <input type="date" name="end_date" class="form-control" placeholder="End Date">
+    </div>
+    <div class="col-md-2">
+        <select name="type" class="form-select">
+            <option value="">All</option>
+            <option value="income">Income</option>
+            <option value="expense">Expense</option>
+        </select>
+    </div>
+    <div class="col-md-3">
+        <input type="text" name="query" class="form-control" placeholder="Search description...">
+    </div>
+    <div class="col-md-1">
+        <button type="submit" class="btn btn-primary w-100">Filter</button>
+    </div>
+</form>
+
 {% if transaction %}
 <h5>Edit Transaction</h5>
 <form action="{{ url_for('edit_transaction', tid=transaction.id) }}" method="post" class="mb-4">
