@@ -88,7 +88,6 @@ def register():
             flash("Registration successful, please login", "success")
             return redirect(url_for("login"))
         else:
-            print("Form valiation errors: ", form.errors)
             flash("Form validation failed, please check your input", "danger")
     
     return render_template("register.html", form=form)
@@ -114,6 +113,14 @@ def dashboard():
     balance = sum(t.amount if t.type == "income" else -t.amount for t in transactions)
     return render_template("dashboard.html", transactions=transactions, balance=balance)
 
+@app.route("/logout")
+@login_required
+def logout():
+    logout_user()
+    flash("You have been logged out", "info")
+    return redirect(url_for("home"))
+
+
 @app.route("/add", methods=["POST"])
 @login_required
 def add_transaction():
@@ -126,6 +133,13 @@ def add_transaction():
     db.session.commit()
     return redirect(url_for("dashboard"))
 
+@app.route("/delete/<int:tid>", methods=["GET", "POST"])
+def delete_transaction(tid):
+    transaction = Transaction.query.filter_by(id=tid, user_id=current_user.id).first_or_404()
+    db.session.delete(transaction)
+    db.session.commit()
+    flash("Credential deleted", "info")
+    return redirect(url_for("dashboard"))
 
 if __name__ == "__main__":
     app.run(debug=True)
