@@ -250,6 +250,58 @@ def add_transaction():
     flash("Transaction added successfully", "success")
     return redirect(url_for("dashboard"))
 
+@app.route("/edit/transaction/<int:tid>", methods=["GET", "POST"])
+def edit_transaction(tid):
+    transaction = Transaction.query.filter_by(id=tid, user_id=current_user.id).first_or_404()
+
+    if request.method == "POST":
+        for label in transaction.labels:
+            goal = Goal.query.filter_by(user_id=current_user.id, name=label.name).first()
+            if goal:
+                if transaction.type == "income":
+                    goal.saved_amount -= transaction.amount
+                elif transaction.type == "expense":
+                    goal.saved_amount += transaction.amount
+
+        transaction.description = request.form["description"].strip().lower()
+        transaction.amount = float(request.form["amount"])
+        transaction.type = request.form["type"]
+
+        label_names = request.form.get("label", "").split(", ")
+        transaction.labels.clear()
+
+        for label_name in label_names:
+            label_name = label_name.strip().lower()
+            if not label_name:
+                continue
+            label = Label.query.filter_by(user_id=current_user.id, name=label_name).first()
+            if not label:
+                label = Label(name=label_name, user_id=current_user.id)
+                db.session.add(label)
+                db.session.commit()
+            transaction.labels.append(label)
+
+        db.session.commit()
+
+        for label in transaction.labels:
+            goal = Goal.query.filter_by(user_id=current_user.id, name=label.name).first()
+            if goal:
+                if transaction.type == "income":
+                    goal.saved_amount += transaction.amount
+                elif transaction.type == "expense":
+                    goal.saved_amount -= transaction.amount
+                goal.saved_amount = max(goal.saved_amount, 0)
+                if goal.saved_amount >= goal.target_amount and goal.status != "completed":
+                    goal.status = "completed"
+                elif goal.saved_amount < goal.target_amount and goal.status == "completed":
+                    goal.status = "active"
+                db.session.commit()
+        flash("Transaction upated successfully", "success")
+        return redirect(url_for("dashboard"))
+    
+    label_string = ", ".join([label.name for label in transaction.labels])
+    return render_template("dashboard.html", transaction=transaction, label_string=label_string)
+
 @app.route("/delete/transaction/<int:tid>", methods=["POST"])
 @login_required
 def delete_transaction(tid):
