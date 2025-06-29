@@ -130,32 +130,62 @@ def login():
 @app.route("/dashboard", methods=["POST", "GET"])
 @login_required
 def dashboard():
+    if request.method == "POST":
+        if "description" in request.form:
+            desc = request.form["description"].strip().lower()
+            label_names = request.form.get("label", "").split(", ")
+            amount = float(request.form["amount"])
+            ttype = request.form["type"]
+
+            labels = []
+            for label_name in label_names:
+                label_name = label_name.strip().lower()
+                if not label_name:
+                    continue
+                label = Label.query.filter_by(user_id=current_user.id, name=label_name).first()
+                if not label:
+                    label = Label(name=label_name, user_id=current_user.id)
+                    db.session.add(label)
+                    db.session.commit()
+                labels.append(label)
+
+            new_t = Transaction(description=desc, amount=amount, type=ttype, user_id=current_user.id, labels=labels)
+            db.session.add(new_t)
+            db.session.commit()
+
+            for label in labels:
+                goal = Goal.query.filter_by(user_id=current_user.id, name=label.name).first()
+                if goal:
+                    if ttype == "income":
+                        goal.saved_amount += amount
+                    elif ttype == "expense":
+                        goal.saved_amount -= amount
+                    goal.saved_amount = max(goal.saved_amount, 0)
+                    if goal.saved_amount >= goal.target_amount and goal.status != "completed":
+                        goal.status = "completed"
+                        flash(f"Congratulations! Goal '{goal.name}' completed", "success")
+                    elif goal.saved_amount < goal.target_amount and goal.status == "completed":
+                        goal.status = "active"
+                    db.session.commit()
+            flash("Transaction added successfully", "success")
+            return redirect(url_for("dashboard"))
+            
+        elif "goal_name" in request.form:
+            name = request.form["goal_name"].strip().lower()
+            target = float(request.form["goal_target_amount"])
+            goal = Goal(name=name, target_amount=target, user_id=current_user.id)
+            db.session.add(goal)
+            db.session.commit()
+            flash("Goal created successfully", "success")
+            return redirect(url_for("dashboard"))
+        
     transactions = Transaction.query.filter_by(user_id=current_user.id).order_by(Transaction.date.desc()).all()
     balance = sum(t.amount if t.type == "income" else -t.amount for t in transactions)
     goals = Goal.query.filter_by(user_id=current_user.id).all()
+    for goal in goals:
+        goal.progress = round((goal.saved_amount / goal.target_amount) * 100, 1) if goal.target_amount > 0 else 0
     user_labels = Label.query.filter_by(user_id=current_user.id).all()
     return render_template("dashboard.html", transactions=transactions, balance=balance, goals=goals, user_labels=user_labels)
-
-@app.route("/goals", methods=["GET", "POST"])
-@login_required
-def goals():
-    if request.method == "POST":
-        name = request.form["name"].strip().lower()
-        target = float(request.form["target_amount"])
-        goal = Goal(name=name, target_amount=target, user_id=current_user.id)
-        db.session.add(goal)
-        db.session.commit()
-        flash("Goal created successfully", "success")
-        return redirect(url_for("goals"))
-    
-    user_goals = Goal.query.filter_by(user_id=current_user.id).all()
-    for goal in user_goals:
-        if goal.target_amount > 0:
-            goal.progress = round((goal.saved_amount / goal.target_amount) * 100, 1)
-        else:
-            goal.progress = 0
-
-    return render_template("goals.html", goals=user_goals)
 
 @app.route("/delete/goal/<int:gid>", methods=["POST"])
 @login_required
@@ -164,7 +194,7 @@ def delete_goal(gid):
     db.session.delete(goal)
     db.session.commit()
     flash("Goal deleted", "info")
-    return redirect(url_for("goals"))
+    return redirect(url_for("dashboard"))
 
 @app.route("/profile")
 def profile():
