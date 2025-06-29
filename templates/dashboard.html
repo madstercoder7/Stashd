@@ -12,12 +12,12 @@
         <input type="text" name="description" class="form-control" placeholder="Description" required>
     </div>
     <div class="mb-3">
-        <select name="label" class="form-select">
-            <option value="">Select Label / Goal</option>
-            {% for goal in goals %}
-                <option value="{{ goal.name }}">{{ goal.name }}</option>
+        <input type="text" name="label" class="form-control" list="labels" placeholder="Type or select a label" required>
+        <datalist id="labels">
+            {% for label in user_labels %}
+                <option value="{{ label.name }}">
             {% endfor %}
-        </select>
+        </datalist>
     </div>
     <div class="mb-3">
         <input type="number" step="0.01" name="amount" class="form-control" placeholder="Amount" required>

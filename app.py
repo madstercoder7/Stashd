@@ -42,6 +42,11 @@ class Transaction(db.Model):
     amount = db.Column(db.Float, nullable=False)
     type = db.Column(db.String(10), nullable=False)
 
+class Label(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    name = db.Column(db.String(50), nullable=False)
+
 class Goal(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
@@ -119,13 +124,16 @@ def login():
     return render_template("login.html", form=form)
 
 @app.route("/dashboard", methods=["POST", "GET"])
+@login_required
 def dashboard():
     transactions = Transaction.query.filter_by(user_id=current_user.id).order_by(Transaction.date.desc()).all()
     balance = sum(t.amount if t.type == "income" else -t.amount for t in transactions)
     goals = Goal.query.filter_by(user_id=current_user.id).all()
-    return render_template("dashboard.html", transactions=transactions, balance=balance, goals=goals)
+    user_labels = Label.query.filter_by(user_id=current_user.id).all()
+    return render_template("dashboard.html", transactions=transactions, balance=balance, goals=goals, user_labels=user_labels)
 
 @app.route("/goals", methods=["GET", "POST"])
+@login_required
 def goals():
     if request.method == "POST":
         name = request.form["name"]
@@ -145,7 +153,8 @@ def goals():
 
     return render_template("goals.html", goals=user_goals)
 
-@app.route("/delete/<int:gid>", methods=["GET", "POST"])
+@app.route("/delete/goal/<int:gid>", methods=["POST"])
+@login_required
 def delete_goal(gid):
     goal = Goal.query.filter_by(id=gid, user_id=current_user.id).first_or_404()
     db.session.delete(goal)
@@ -164,34 +173,52 @@ def logout():
     flash("You have been logged out", "info")
     return redirect(url_for("home"))
 
-
 @app.route("/add", methods=["POST"])
 @login_required
 def add_transaction():
     desc = request.form["description"]
-    label = request.form["label"]
+    label_name = request.form["label"].strip()
     amount = float(request.form["amount"])
     ttype = request.form["type"]
 
-    new_t = Transaction(description=desc, label=label, amount=amount, type=ttype, user_id=current_user.id)
+    label = Label.query.filter_by(user_id=current_user.id, name=label_name).first()
+    if not label and label_name:
+        label = Label(name=label_name, user_id=current_user.id)
+        db.session.add(label)
+        db.session.commit()
+
+    new_t = Transaction(description=desc, label=label.name, amount=amount, type=ttype, user_id=current_user.id)
     db.session.add(new_t)
     db.session.commit()
 
-    goal = Goal.query.filter_by(user_id=current_user.id, name=label).first()
-    if goal and ttype == "income":
-        goal.saved_amount += amount
+    goal = Goal.query.filter_by(user_id=current_user.id, name=label.name).first()
+    if goal:
+        if ttype == "income":
+            goal.saved_amount += amount
+        elif ttype == "expense":
+            goal.saved_amount -= amount
+
+        goal.saved_amount = max(goal.saved_amount, 0)
+
         if goal.saved_amount >= goal.target_amount:
-            goal.status = "completed"
+            if goal.status != "completed":
+                goal.status = "completed"
+                flash(f"Congratulations! Goal '{goal.name}' completed", "success")
+        else:
+            if goal.status == "completed":
+                goal.status = "active"
+
         db.session.commit()
 
     return redirect(url_for("dashboard"))
 
-@app.route("/delete/<int:tid>", methods=["GET", "POST"])
+@app.route("/delete/transaction/<int:tid>", methods=["POST"])
+@login_required
 def delete_transaction(tid):
     transaction = Transaction.query.filter_by(id=tid, user_id=current_user.id).first_or_404()
     db.session.delete(transaction)
     db.session.commit()
-    flash("Credential deleted", "info")
+    flash("Transaction deleted", "info")
     return redirect(url_for("dashboard"))
 
 if __name__ == "__main__":
