@@ -6,6 +6,7 @@ from wtforms import StringField, PasswordField, SubmitField
 from wtforms.validators import DataRequired, Email, Length, EqualTo 
 from flask_bcrypt import Bcrypt
 from flask_login import LoginManager, login_user, logout_user, login_required, UserMixin, current_user
+from flask_migrate import Migrate
 from dotenv import load_dotenv
 from datetime import datetime
 
@@ -18,6 +19,7 @@ app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("SQLALCHEMY_DATABASE_URI")
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db = SQLAlchemy(app)
+migrate = Migrate(app, db)
 bcrypt = Bcrypt(app)
 login_manager = LoginManager(app)
 login_manager.login_view = "login"
@@ -29,6 +31,7 @@ class User(db.Model, UserMixin):
     username = db.Column(db.String(50), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password = db.Column(db.String(120), nullable=False)
+    date_joined = db.Column(db.DateTime, default=datetime.now())
 
 class Transaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -112,6 +115,10 @@ def dashboard():
     transactions = Transaction.query.filter_by(user_id=current_user.id).order_by(Transaction.date.desc()).all()
     balance = sum(t.amount if t.type == "income" else -t.amount for t in transactions)
     return render_template("dashboard.html", transactions=transactions, balance=balance)
+
+@app.route("/profile")
+def profile():
+    return render_template("profile.html", user=current_user)
 
 @app.route("/logout")
 @login_required

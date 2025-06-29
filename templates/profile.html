@@ -1,0 +1,11 @@
+{% extends "layout.html" %}
+{% block title %}Profile{% endblock %}
+
+{% block content %} 
+<h2>Profile</h2>
+<div class="card p-4 mt-3 text-bg-dark">
+    <p><strong>Username:</strong> {{ user.username }}</p>
+    <p><strong>Email:</strong> {{ user.email }}</p>
+    <p><strong>Date Joined:</strong> {{ user.date_joined.strftime('%Y-%m-%d') }}</p>
+</div>
+{% endblock %}
