@@ -12,12 +12,7 @@
         <input type="text" name="description" class="form-control" placeholder="Description" required>
     </div>
     <div class="mb-3">
-        <input type="text" name="label" class="form-control" list="labels" placeholder="Type or select a label" required>
-        <datalist id="labels">
-            {% for label in user_labels %}
-                <option value="{{ label.name }}">
-            {% endfor %}
-        </datalist>
+        <input type="text" id="label-select" name="label" placeholder="Type or select a label" required>
     </div>
     <div class="mb-3">
         <input type="number" step="0.01" name="amount" class="form-control" placeholder="Amount" required>
@@ -49,7 +44,11 @@
         <tr>
             <td>{{ t.date.strftime('%Y-%m-%d %H:%M') }}</td>
             <td>{{ t.description }}</td>
-            <td>{{ t.label }}</td>
+            <td>
+                {% for label in t.labels %}
+                    <span class="badge bg-info me-1">{{ label.name }}</span>
+                {% endfor %}
+            </td>
             <td>{{ t.amount }}</td>
             <td>{{ t.type }}</td>
             <td>
@@ -63,4 +62,26 @@
         {% endfor %}
     </tbody>
 </table>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const existingLabels = {{ user_labels|map(attribute='name')|list|tojson }};
+
+        new TomSelect("#label-select", {
+            persist: true,
+            create: true,
+            maxItems: null,
+            plugins: ['remove_button'],
+            options: existingLabels.map(label => ({ value: label, text: label })),
+            render: {
+                item: function(data, escape) {
+                    return '<div class="badge bg-secondary me-1">' + escape(data.text) + '</div>';
+                },
+                option: function(data, escape) {
+                    return '<div>' + escape(data.text) + '</div>';
+                }
+            }
+        });
+    });
+</script>
 {% endblock %}

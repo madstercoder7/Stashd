@@ -33,14 +33,19 @@ class User(db.Model, UserMixin):
     password = db.Column(db.String(120), nullable=False)
     date_joined = db.Column(db.DateTime, default=datetime.now())
 
+transaction_labels = db.Table("transaction_labels",
+    db.Column("transaction_id", db.Integer, db.ForeignKey("transaction.id"), primary_key=True),
+    db.Column("label_id", db.Integer, db.ForeignKey("label.id"), primary_key=True)
+)
+
 class Transaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     date = db.Column(db.DateTime, default=datetime.now())
     description = db.Column(db.String(100), nullable=False)
-    label = db.Column(db.String(100))
     amount = db.Column(db.Float, nullable=False)
     type = db.Column(db.String(10), nullable=False)
+    labels = db.relationship("Label", secondary=transaction_labels, backref="transactions")
 
 class Label(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -61,7 +66,6 @@ with app.app_context():
 @login_manager.user_loader
 def load_user(user_id):
     return db.session.get(User, int(user_id))
-
 
 # Forms
 class RegisterForm(FlaskForm):
@@ -136,7 +140,7 @@ def dashboard():
 @login_required
 def goals():
     if request.method == "POST":
-        name = request.form["name"]
+        name = request.form["name"].strip().lower()
         target = float(request.form["target_amount"])
         goal = Goal(name=name, target_amount=target, user_id=current_user.id)
         db.session.add(goal)
@@ -176,46 +180,65 @@ def logout():
 @app.route("/add", methods=["POST"])
 @login_required
 def add_transaction():
-    desc = request.form["description"]
-    label_name = request.form["label"].strip()
+    desc = request.form["description"].strip().lower()
+    label_names = request.form.get("label", "").split(", ")
     amount = float(request.form["amount"])
     ttype = request.form["type"]
 
-    label = Label.query.filter_by(user_id=current_user.id, name=label_name).first()
-    if not label and label_name:
-        label = Label(name=label_name, user_id=current_user.id)
-        db.session.add(label)
-        db.session.commit()
+    labels = []
+    for label_name in label_names:
+        label_name = label_name.strip().lower()
+        if not label_name:
+            continue
 
-    new_t = Transaction(description=desc, label=label.name, amount=amount, type=ttype, user_id=current_user.id)
+        label = Label.query.filter_by(user_id=current_user.id, name=label_name).first()
+        if not label:
+            label = Label(name=label_name, user_id=current_user.id)
+            db.session.add(label)
+            db.session.commit()
+        labels.append(label) 
+
+    new_t = Transaction(description=desc, amount=amount, type=ttype, user_id=current_user.id, labels=labels)
     db.session.add(new_t)
     db.session.commit()
 
-    goal = Goal.query.filter_by(user_id=current_user.id, name=label.name).first()
-    if goal:
-        if ttype == "income":
-            goal.saved_amount += amount
-        elif ttype == "expense":
-            goal.saved_amount -= amount
-
-        goal.saved_amount = max(goal.saved_amount, 0)
-
-        if goal.saved_amount >= goal.target_amount:
-            if goal.status != "completed":
+    for label in labels:
+        goal = Goal.query.filter_by(user_id=current_user.id, name=label.name).first()
+        if goal:
+            if ttype == "income":
+                goal.saved_amount += amount
+            elif ttype == "expense":
+                goal.saved_amount -= amount
+            goal.saved_amount = max(goal.saved_amount, 0)
+            if goal.saved_amount >= goal.target_amount and goal.status != "completed":
                 goal.status = "completed"
                 flash(f"Congratulations! Goal '{goal.name}' completed", "success")
-        else:
-            if goal.status == "completed":
+            elif goal.saved_amount < goal.target_amount and goal.status == "completed":
                 goal.status = "active"
+            db.session.commit()           
 
-        db.session.commit()
-
+    flash("Transaction added successfully", "success")
     return redirect(url_for("dashboard"))
 
 @app.route("/delete/transaction/<int:tid>", methods=["POST"])
 @login_required
 def delete_transaction(tid):
     transaction = Transaction.query.filter_by(id=tid, user_id=current_user.id).first_or_404()
+
+    for label in transaction.labels:
+        goal = Goal.query.filter_by(user_id=current_user.id, name=label.name).first()
+        if goal:
+            if transaction.type == "income":
+                goal.saved_amount -= transaction.amount
+            elif transaction.type == "expense":
+                goal.saved_amount += transaction.amount
+            goal.saved_amount = max(goal.saved_amount, 0)
+            if goal.saved_amount >= goal.target_amount and goal.status != "completed":
+                goal.status = "completed"
+            elif goal.saved_amount < goal.target_amount and goal.status == "completed":\
+                goal.status = "active"
+            db.session.commit()
+
     db.session.delete(transaction)
     db.session.commit()
     flash("Transaction deleted", "info")
