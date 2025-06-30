@@ -1,13 +1,18 @@
 import os
 from datetime import datetime, timedelta
-from flask import Flask, render_template, request, redirect, url_for, session, flash, abort
+from flask import Flask, render_template, request, redirect, url_for, session, flash, abort, jsonify
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import text
+from sqlalchemy.exc import OperationalError
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SubmitField
 from wtforms.validators import DataRequired, Email, Length, EqualTo 
 from flask_bcrypt import Bcrypt
 from flask_login import LoginManager, login_user, logout_user, login_required, UserMixin, current_user
 from flask_migrate import Migrate
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from flask_limiter.errors import RateLimitExceeded
 from dotenv import load_dotenv
 from datetime import datetime
 from utils import send_reset_email, verify_reset_token, generate_reset_token, mail
@@ -16,6 +21,7 @@ load_dotenv()
 
 app = Flask(__name__)
 
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=5)
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
 app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("SQLALCHEMY_DATABASE_URI")
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
@@ -26,6 +32,12 @@ app.config["MAIL_USE_SSL"] = False
 app.config["MAIL_USERNAME"] = os.getenv("MAIL_USERNAME")
 app.config["MAIL_PASSWORD"] = os.getenv("MAIL_PASSWORD")
 app.config["MAIL_DEFAULT_SENDER"] = os.getenv("MAIL_USERNAME")
+app.config['SESSION_COOKIE_SECURE'] = True
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+
+if not app.config["SECRET_KEY"]:
+    raise ValueError("No SECRET_KEY set for Flask application")
 
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
@@ -34,6 +46,16 @@ bcrypt = Bcrypt(app)
 login_manager = LoginManager(app)
 login_manager.login_view = "login"
 login_manager.login_message_category = "info"
+
+@app.before_request
+def warm_db():
+    if request.endpoint in ('static', None) or request.path == '/favicon.ico':
+        return
+    
+    try:
+        db.session.execute(text("SELECT 1"))
+    except OperationalError:
+        app.logger.warning("Database is waking up or unreachable")
 
 # Models
 class User(db.Model, UserMixin):
@@ -73,6 +95,17 @@ class Goal(db.Model):
 with app.app_context():
     db.create_all()
 
+REDIS_URL = os.getenv("REDIS_URL")
+limiter = Limiter(get_remote_address, app=app, default_limits=["200 per day", "50 per day"], storage_uri=REDIS_URL)
+limiter.init_app(app)
+
+@app.errorhandler(RateLimitExceeded)
+def ratelimit_handler(e):
+    return jsonify({
+        "error": "Too many requests. Please slow down",
+        "message": str(e.description)
+    }), 429
+
 @login_manager.user_loader
 def load_user(user_id):
     return db.session.get(User, int(user_id))
@@ -110,6 +143,7 @@ def home():
     return render_template("landing.html")
 
 @app.route("/register", methods=["GET", "POST"])
+@limiter.limit("10 per minute")
 def register():
     form = RegisterForm()
     if request.method == "POST":    
@@ -138,6 +172,7 @@ def register():
     return render_template("register.html", form=form)
 
 @app.route("/login", methods=["GET", "POST"])
+@limiter.limit("10 per minute")
 def login():
     form = LoginForm()
     if form.validate_on_submit():
@@ -154,6 +189,7 @@ def login():
 
 @app.route("/dashboard", methods=["POST", "GET"])
 @login_required
+@limiter.limit("20 per minute")
 def dashboard():
     if request.method == "POST":
         if "description" in request.form:
@@ -229,6 +265,7 @@ def dashboard():
 
 @app.route("/delete/goal/<int:gid>", methods=["POST"])
 @login_required
+@limiter.limit("10 per minute")
 def delete_goal(gid):
     goal = Goal.query.filter_by(id=gid, user_id=current_user.id).first_or_404()
     if not goal:
@@ -240,6 +277,8 @@ def delete_goal(gid):
     return redirect(url_for("dashboard"))
 
 @app.route("/profile")
+@login_required
+@limiter.limit("10 per minute")
 def profile():
     return render_template("profile.html", user=current_user)
 
@@ -252,6 +291,7 @@ def logout():
 
 @app.route("/add", methods=["POST"])
 @login_required
+@limiter.limit("10 per minute")
 def add_transaction():
     desc = request.form["description"].strip().lower()
     label_names = request.form.get("label", "").split(", ")
@@ -294,6 +334,8 @@ def add_transaction():
     return redirect(url_for("dashboard"))
 
 @app.route("/edit/transaction/<int:tid>", methods=["GET", "POST"])
+@login_required
+@limiter.limit("10 per minute")
 def edit_transaction(tid):
     transaction = Transaction.query.filter_by(id=tid, user_id=current_user.id).first_or_404()
 
@@ -347,6 +389,7 @@ def edit_transaction(tid):
 
 @app.route("/delete/transaction/<int:tid>", methods=["POST"])
 @login_required
+@limiter.limit("10 per minute")
 def delete_transaction(tid):
     transaction = Transaction.query.filter_by(id=tid, user_id=current_user.id).first_or_404()
     if not transaction:
@@ -372,6 +415,8 @@ def delete_transaction(tid):
     return redirect(url_for("dashboard"))
 
 @app.route("/change_password", methods=["GET", "POST"])
+@login_required
+@limiter.limit("2 per minute")
 def change_password():
     form = ChangePasswordForm()
     if form.validate_on_submit():
