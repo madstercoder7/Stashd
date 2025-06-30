@@ -121,11 +121,11 @@ def load_user(user_id):
 
 # Forms
 class RegisterForm(FlaskForm):
-    username = StringField("Username", validators=[DataRequired(), Length(min=3, max=50)])
-    email = StringField("Email", validators=[DataRequired(), Email()])
-    password = PasswordField("Password", validators=[DataRequired(), Length(min=6)])
-    confirm_password = PasswordField("Confirm Password", validators=[DataRequired(), EqualTo("password")])
-    submit = SubmitField("Register")
+    username = StringField("Username", validators=[DataRequired(), Length(min=3, max=50)]) # Username of the user
+    email = StringField("Email", validators=[DataRequired(), Email()]) # Email id of the user
+    password = PasswordField("Password", validators=[DataRequired(), Length(min=6)]) # Password of the user
+    confirm_password = PasswordField("Confirm Password", validators=[DataRequired(), EqualTo("password")]) # Confirm password of the user 
+    submit = SubmitField("Register") # Register button 
 
 class LoginForm(FlaskForm):
     username = StringField("Username", validators=[DataRequired()])
@@ -150,33 +150,33 @@ class ResetPasswordForm(FlaskForm):
 @app.route("/")
 def home():
     # Landing page
-    return render_template("landing.html")
+    return render_template("landing.html") # Returns the landing page template
 
 @app.route("/register", methods=["GET", "POST"])
 @limiter.limit("10 per minute")
 def register():
     # Register page
-    form = RegisterForm()
-    if request.method == "POST":    
-        if form.validate_on_submit():
+    form = RegisterForm() # Initialaizes the register form
+    if request.method == "POST": # Checks if method is post
+        if form.validate_on_submit(): 
             existing_user = User.query.filter(
                 (User.username == form.username.data) | (User.email == form.email.data)
-            ).first()
+            ).first() # Checks if username or email already exist in the database
 
-            if existing_user:
+            if existing_user: 
                 if existing_user.username == form.username.data:
                     flash("Username already exists", "danger")
                 else:
                     flash("Email already registered", "danger")
                 return redirect(url_for("register"))
             
-            hashed_pw = bcrypt.generate_password_hash(form.password.data).decode("utf-8")
-            user = User(username=form.username.data, email=form.email.data, password=hashed_pw)
-            db.session.add(user)
-            db.session.commit()
+            hashed_pw = bcrypt.generate_password_hash(form.password.data).decode("utf-8") # Encrypts the user's password 
+            user = User(username=form.username.data, email=form.email.data, password=hashed_pw) # Stores the new user instance
+            db.session.add(user) # Adds the user to the databse session  
+            db.session.commit() # Commits the databse session
 
             flash("Registration successful, please login", "success")
-            return redirect(url_for("login"))
+            return redirect(url_for("login")) # Returns the login page templated
         else:
             flash("Form validation failed, please check your input", "danger")
     
@@ -186,80 +186,80 @@ def register():
 @limiter.limit("10 per minute")
 def login():
     # Login Page
-    form = LoginForm()
+    form = LoginForm() # Initializes the login form 
     if form.validate_on_submit():
-        user = User.query.filter_by(username=form.username.data.strip()).first()
-        if user and bcrypt.check_password_hash(user.password, form.password.data):
-            login_user(user)
-            db.session.commit()
-            flash("Login successful", "success")
-            return redirect(url_for("dashboard"))
+        user = User.query.filter_by(username=form.username.data.strip()).first() # Filter the users
+        if user and bcrypt.check_password_hash(user.password, form.password.data): # Checks if the user exists and the passwords match
+            login_user(user) # Logs the user in
+            db.session.commit() # Commits the database session
+            flash("Login successful", "success") 
+            return redirect(url_for("dashboard")) # Returns the dashboard template
         else:
             flash("Incorrect username or password", "danger")
 
-    return render_template("login.html", form=form)
+    return render_template("login.html", form=form) 
 
 @app.route("/dashboard", methods=["POST", "GET"])
 @login_required
 @limiter.limit("20 per minute")
 def dashboard():
     # Dashboard page
-    if request.method == "POST":
-        if "description" in request.form:
-            desc = request.form["description"].strip().lower()
-            label_names = request.form.get("label", "").split(", ")
-            amount = float(request.form["amount"])
-            ttype = request.form["type"]
+    if request.method == "POST": # Checks if form method is post
+        if "description" in request.form: # Check if description is there in the request.form
+            desc = request.form["description"].strip().lower() # Retrieves the description
+            label_names = request.form.get("label", "").split(", ") # Retrieves the label names
+            amount = float(request.form["amount"]) # Retrieves the amount
+            ttype = request.form["type"] # Retrieves the transaction type
 
-            labels = []
-            for label_name in label_names:
-                label_name = label_name.strip().lower()
-                if not label_name:
+            labels = [] # Intiiazling the labels array
+            for label_name in label_names: 
+                label_name = label_name.strip().lower() # Stores label name without whitespaces
+                if not label_name: 
                     continue
                 label = Label.query.filter_by(user_id=current_user.id, name=label_name).first()
                 if not label:
                     label = Label(name=label_name, user_id=current_user.id)
-                    db.session.add(label)
-                    db.session.commit()
-                labels.append(label)
+                    db.session.add(label) # Adds the label to the session
+                    db.session.commit() # Commits the session
+                labels.append(label) # Appends the label in the labels array if the label was added
 
-            new_t = Transaction(description=desc, amount=amount, type=ttype, user_id=current_user.id, labels=labels)
-            db.session.add(new_t)
-            db.session.commit()
+            new_t = Transaction(description=desc, amount=amount, type=ttype, user_id=current_user.id, labels=labels) # Creates a new transaction 
+            db.session.add(new_t) # Adds the new transaction to the session
+            db.session.commit() # Commits the session
 
             for label in labels:
-                goal = Goal.query.filter_by(user_id=current_user.id, name=label.name).first()
+                goal = Goal.query.filter_by(user_id=current_user.id, name=label.name).first() # Queries the goals
                 if goal:
                     if ttype == "income":
-                        goal.saved_amount += amount
+                        goal.saved_amount += amount # Adds amount to goals if income
                     elif ttype == "expense":
-                        goal.saved_amount -= amount
-                    goal.saved_amount = max(goal.saved_amount, 0)
-                    if goal.saved_amount >= goal.target_amount and goal.status != "completed":
-                        goal.status = "completed"
+                        goal.saved_amount -= amount # Subtracts amount from goals if expense
+                    goal.saved_amount = max(goal.saved_amount, 0) # Saved amount cant go negative
+                    if goal.saved_amount >= goal.target_amount and goal.status != "completed": 
+                        goal.status = "completed" # Changes goal status to completed
                         flash(f"Congratulations! Goal '{goal.name}' completed", "success")
                     elif goal.saved_amount < goal.target_amount and goal.status == "completed":
-                        goal.status = "active"
-                    db.session.commit()
-            flash("Transaction added successfully", "success")
-            return redirect(url_for("dashboard"))
+                        goal.status = "active" # Changes goal status to active
+                    db.session.commit() # Commits the databse session
+            flash("Transaction added successfully", "success") 
+            return redirect(url_for("dashboard")) # Returns the user to the dashboard template 
             
-        elif "goal_name" in request.form:
-            name = request.form["goal_name"].strip().lower()
-            target = float(request.form["goal_target_amount"])
-            goal = Goal(name=name, target_amount=target, user_id=current_user.id)
-            db.session.add(goal)
-            db.session.commit()
+        elif "goal_name" in request.form: # Checks if goal name is present in the request
+            name = request.form["goal_name"].strip().lower() # Retrieves name of the goal 
+            target = float(request.form["goal_target_amount"]) # Retrieves final target amount of the goal
+            goal = Goal(name=name, target_amount=target, user_id=current_user.id) # Adds a new goal instance
+            db.session.add(goal) # Adds the goal to the database session
+            db.session.commit() # Commits the database session
             flash("Goal created successfully", "success")
-            return redirect(url_for("dashboard"))
+            return redirect(url_for("dashboard")) # Returns the user to the dashboard template
 
-    query = Transaction.query.filter_by(user_id=current_user.id)
-    start_date = request.args.get("start_date")
-    end_date = request.args.get("end_date")
-    ttype = request.args.get("type")
-    search = request.args.get("query")
+    query = Transaction.query.filter_by(user_id=current_user.id) # Make s a new transaction query
+    start_date = request.args.get("start_date") # Retrieves the start date of the filter
+    end_date = request.args.get("end_date") # Retrieves the end date of the filter
+    ttype = request.args.get("type") # Retrieves the type of the transaction
+    search = request.args.get("query") # Retrieves the description of the transaction
 
-    if start_date:
+    if start_date: 
         query = query.filter(Transaction.date >= start_date)
     if end_date:
         query = query.filter(Transaction.date <= end_date)
@@ -268,12 +268,12 @@ def dashboard():
     if search:
         query = query.filter(Transaction.description.ilike(f"%{search.strip().lower()}%"))
 
-    transactions = query.order_by(Transaction.date.desc()).all()
-    balance = sum(t.amount if t.type == "income" else -t.amount for t in transactions)
-    goals = Goal.query.filter_by(user_id=current_user.id).all()
+    transactions = query.order_by(Transaction.date.desc()).all() # Filters out the transactions that come under the filter
+    balance = sum(t.amount if t.type == "income" else -t.amount for t in transactions) # Updates the balance
+    goals = Goal.query.filter_by(user_id=current_user.id).all() # Gives all the goals
     for goal in goals:
-        goal.progress = round((goal.saved_amount / goal.target_amount) * 100, 1) if goal.target_amount > 0 else 0
-    user_labels = Label.query.filter_by(user_id=current_user.id).all()
+        goal.progress = round((goal.saved_amount / goal.target_amount) * 100, 1) if goal.target_amount > 0 else 0 # Updates the goal progress
+    user_labels = Label.query.filter_by(user_id=current_user.id).all() # Retrieves all labels of the goal 
     return render_template("dashboard.html", transactions=transactions, balance=balance, goals=goals, user_labels=user_labels)
 
 @app.route("/delete/goal/<int:gid>", methods=["POST"])
@@ -281,56 +281,56 @@ def dashboard():
 @limiter.limit("10 per minute")
 def delete_goal(gid):
     # Delete goal 
-    goal = Goal.query.filter_by(id=gid, user_id=current_user.id).first_or_404()
-    if not goal:
+    goal = Goal.query.filter_by(id=gid, user_id=current_user.id).first_or_404() # Gets the goal
+    if not goal: # If ogla doesnt exist 404 error is shown
         abort(404)
 
-    db.session.delete(goal)
-    db.session.commit()
-    flash("Goal deleted", "info")
-    return redirect(url_for("dashboard"))
+    db.session.delete(goal) # Deletes the goal from the session
+    db.session.commit() # Commits the database session
+    flash("Goal deleted", "info") 
+    return redirect(url_for("dashboard")) # Returns the user to the dashbaord page
 
 @app.route("/profile")
 @login_required
 @limiter.limit("10 per minute")
 def profile():
     # Profile Page
-    return render_template("profile.html", user=current_user)
+    return render_template("profile.html", user=current_user) # Returns the user to the profile page
 
 @app.route("/logout")
 @login_required
 def logout():
     # Logout
-    logout_user()
+    logout_user() # Logs out the user
     flash("You have been logged out", "info")
-    return redirect(url_for("home"))
+    return redirect(url_for("home")) # Redirects the user to the landing page
 
 @app.route("/add", methods=["POST"])
 @login_required
 @limiter.limit("10 per minute")
 def add_transaction():
     # Add transactions
-    desc = request.form["description"].strip().lower()
-    label_names = request.form.get("label", "").split(", ")
-    amount = float(request.form["amount"])
-    ttype = request.form["type"]
+    desc = request.form["description"].strip().lower() # Retrieves the description 
+    label_names = request.form.get("label", "").split(", ") # Retrieves the label names
+    amount = float(request.form["amount"]) # Retrieves the amount of the transaction
+    ttype = request.form["type"] # Retrieves the transaction type
 
-    labels = []
-    for label_name in label_names:
-        label_name = label_name.strip().lower()
+    labels = [] # Initializes the labels array
+    for label_name in label_names: 
+        label_name = label_name.strizp().lower()
         if not label_name:
             continue
 
-        label = Label.query.filter_by(user_id=current_user.id, name=label_name).first()
+        label = Label.query.filter_by(user_id=current_user.id, name=label_name).first() # Retrieves the label
         if not label:
-            label = Label(name=label_name, user_id=current_user.id)
-            db.session.add(label)
-            db.session.commit()
-        labels.append(label) 
+            label = Label(name=label_name, user_id=current_user.id) 
+            db.session.add(label) # Adds the label to the session
+            db.session.commit() # Commits the databse session
+        labels.append(label) # Appends the label to the labels array
 
-    new_t = Transaction(description=desc, amount=amount, type=ttype, user_id=current_user.id, labels=labels)
-    db.session.add(new_t)
-    db.session.commit()
+    new_t = Transaction(description=desc, amount=amount, type=ttype, user_id=current_user.id, labels=labels) # Creates a new transaction
+    db.session.add(new_t) # Adds the new tranasaction to the session
+    db.session.commit() # Commits the database session
 
     for label in labels:
         goal = Goal.query.filter_by(user_id=current_user.id, name=label.name).first()
