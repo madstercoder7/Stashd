@@ -2,6 +2,18 @@
 {% block title %}Personal Finance Tracker{% endblock %} 
 
 {% block content %}
-<h1>Welcome to Stashd</h1>
-<p>Our goal is to make your pockets as Stashd as possible!</p>
+<div class="landing-hero text-center text-white py-5">
+    <h1 class="display-3 fw-bold mb-3">Welcome to Stashd</h1>
+    <p class="lead mb-4">Master your money, achieve your saving goals, and keep your pockets Stashd!</p>
+    {% if not current_user.is_authenticated %}
+    <div class="d-flex justify-content-center gap-3">
+        <a href="{{ url_for('register') }}" class="btn btn-lg btn-success">Get Started</a>
+        <a href="{{ url_for('login') }}" class="btn btn-lg btn-outline-light">Log In</a>
+    </div>
+    {% else %}
+    <div class="d-flex justify-content-center">
+        <a href="{{ url_for('dashboard') }}" class="btn btn-lg btn-primary">Go to Dashboard</a>
+    </div>
+    {% endif %}
+</div>
 {% endblock %}

@@ -2,163 +2,181 @@
 {% block title %}Dashboard{% endblock %}
 
 {% block content %}
-<h2>Welcome, {{ current_user.username }}</h2>
-<h4 class="mt-3">Your Balance: ${{ balance }}</h4>
+<h2 class="text-center mb-4">Welcome, {{ current_user.username }}</h2>
+<h4 class="text-center mb-4">Your Balance: ${{ balance }}</h4>
 
-<div class="accordion" id="goalsAccordion">
-    <div class="accordion-item">
+<!-- Goals Accordion -->
+<div class="accordion mb-4 shadow-sm" id="goalsAccordion">
+    <div class="accordion-item bg-dark text-light">
         <h2 class="accordion-header" id="goalsHeading">
-            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#goalsCollapse" aria-expanded="false" aria-controls="goalsCollapse">
-                Your Goals
+            <button class="accordion-button collapsed bg-dark text-light" type="button" data-bs-toggle="collapse" data-bs-target="#goalsCollapse" aria-expanded="false" aria-controls="goalsCollapse">
+                🎯 Your Goals
             </button>
         </h2>
         <div id="goalsCollapse" class="accordion-collapse collapse" aria-labelledby="goalsHeading" data-bs-parent="#goalsAccordion">
             <div class="accordion-body">
                 {% for goal in goals %}
-                    <div class="card mb-3">
-                        <div class="card-body">
-                            <h6 class="card-title">{{ goal.name }}</h6>
-                            <div class="progress mb-2">
-                                <div class="progress-bar {% if goal.status == 'completed' %}bg-success{% else %}bg-info{% endif %}" role="progressbar" style="width: {{ goal.progress }}%">
-                                    {{ goal.progress }}%
-                                </div>
+                <div class="card bg-secondary text-light mb-3 shadow-sm">
+                    <div class="card-body">
+                        <h6 class="card-title">{{ goal.name }} {% if goal.status == 'completed' %}<span class="badge bg-success">Completed</span>{% endif %}</h6>
+                        <div class="progress mb-2">
+                            <div class="progress-bar {% if goal.status == 'completed' %}bg-success{% else %}bg-info{% endif %}" role="progressbar" style="width: {{ goal.progress }}%;">
+                                {{ goal.progress }}%
                             </div>
-                            <p class="small mb-1">Saved: ${{ goal.saved_amount }} / Target: ${{ goal.target_amount }}</p>
-                            <form action="{{ url_for('delete_goal', gid=goal.id) }}" method="post">
-                                <button class="btn btn-sm btn-danger">Delete</button>
-                            </form>
                         </div>
+                        <p class="small mb-2">Saved: ${{ goal.saved_amount }} / Target: ${{ goal.target_amount }}</p>
+                        <form action="{{ url_for('delete_goal', gid=goal.id) }}" method="post">
+                            <button class="btn btn-sm btn-danger rounded-pill shadow-sm">Delete</button>
+                        </form>
                     </div>
+                </div>
                 {% else %}
-                    <p>No goals yet, add one below!</p>
+                <p>No goals yet. Add one below!</p>
                 {% endfor %}
-
                 <hr>
                 <h6>Add New Goal</h6>
                 <form action="{{ url_for('dashboard') }}" method="post">
                     <div class="mb-2">
-                        <input type="text" name="goal_name" class="form-control" placeholder="Goal name" required>
+                        <input type="text" name="goal_name" class="form-control bg-secondary text-light border-0" placeholder="Goal name" required>
                     </div>
                     <div class="mb-2">
-                        <input type="number" step="0.01" name="goal_target_amount" class="form-control" placeholder="Target amount" required>
+                        <input type="number" step="0.01" name="goal_target_amount" class="form-control bg-secondary text-light border-0" placeholder="Target amount" required>
                     </div>
-                    <button type="submit" class="btn btn-sm btn-primary">Add Goal</button>
+                    <button type="submit" class="btn btn-sm btn-primary rounded-pill shadow-sm">Add Goal</button>
                 </form>
             </div>
         </div>
     </div>
 </div>
 
-<hr>
+<!-- Filter/Search Bar -->
+<div class="card mb-4 p-3 shadow-sm bg-dark text-light">
+    <form action="{{ url_for('dashboard') }}" method="get" class="row g-2 align-items-end">
+        <div class="col-md-3">
+            <label class="form-label">Start Date</label>
+            <input type="date" name="start_date" class="form-control bg-secondary text-light border-0">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">End Date</label>
+            <input type="date" name="end_date" class="form-control bg-secondary text-light border-0">
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Type</label>
+            <select name="type" class="form-select bg-secondary text-light border-0">
+                <option value="">All</option>
+                <option value="income">Income</option>
+                <option value="expense">Expense</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Description</label>
+            <input type="text" name="query" class="form-control bg-secondary text-light border-0" placeholder="Search...">
+        </div>
+        <div class="col-md-1 d-grid">
+            <button type="submit" class="btn btn-primary rounded-pill shadow-sm">Filter</button>
+        </div>
+    </form>
+</div>
 
-<form action="{{ url_for('dashboard') }}" method="get" class="row g-2 mb-4">
-    <div class="col-md-3">
-        <input type="date" name="start_date" class="form-control" placeholder="Start Date">
-    </div>
-    <div class="col-md-3">
-        <input type="date" name="end_date" class="form-control" placeholder="End Date">
-    </div>
-    <div class="col-md-2">
-        <select name="type" class="form-select">
-            <option value="">All</option>
-            <option value="income">Income</option>
-            <option value="expense">Expense</option>
-        </select>
-    </div>
-    <div class="col-md-3">
-        <input type="text" name="query" class="form-control" placeholder="Search description...">
-    </div>
-    <div class="col-md-1">
-        <button type="submit" class="btn btn-primary w-100">Filter</button>
-    </div>
-</form>
-
+<!-- Add/Edit Transaction Form -->
 {% if transaction %}
-<h5>Edit Transaction</h5>
-<form action="{{ url_for('edit_transaction', tid=transaction.id) }}" method="post" class="mb-4">
+<h5 class="mb-3">✏️ Edit Transaction</h5>
+<form action="{{ url_for('edit_transaction', tid=transaction.id) }}" method="post" class="mb-4 card p-4 bg-dark text-light shadow-sm">
     <div class="mb-3">
-        <input type="text" name="description" class="form-control" placeholder="Description" value="{{ transaction.description }}" required>
+        <input type="text" name="description" class="form-control bg-secondary text-light border-0" placeholder="Description" value="{{ transaction.description }}" required>
     </div>
     <div class="mb-3">
-        <input type="text" name="label" id="label-edit" placeholder="Type or select labels" value="{{ label_string }}" required>
+        <input type="text" name="label" id="label-edit" class="form-control bg-secondary text-light border-0" placeholder="Type or select labels" value="{{ label_string }}" required>
     </div>
     <div class="mb-3">
-        <input type="number" name="amount" step="0.01" class="form-control" placeholder="Amount" value="{{ transaction.amount }}" required>
+        <input type="number" name="amount" step="0.01" class="form-control bg-secondary text-light border-0" placeholder="Amount" value="{{ transaction.amount }}" required>
     </div>
     <div class="mb-3">
-        <select name="type" class="form-select" required>
+        <select name="type" class="form-select bg-secondary text-light border-0" required>
             <option value="income" {% if transaction.type == 'income' %}selected{% endif %}>Income</option>
             <option value="expense" {% if transaction.type == 'expense' %}selected{% endif %}>Expense</option>
         </select>
     </div>
-    <button type="submit" class="btn btn-warning">Update Transaction</button>
-    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary ms-2">Cancel</a>
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-warning rounded-pill shadow-sm">Update Transaction</button>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-secondary rounded-pill shadow-sm">Cancel</a>
+    </div>
 </form>
-
 {% else %}
-<h5>Add Transaction</h5>
-<form action="{{ url_for('add_transaction') }}" method="post" class="mb-4">
+<h5 class="mb-3">➕ Add Transaction</h5>
+<form action="{{ url_for('add_transaction') }}" method="post" class="mb-4 card p-4 bg-dark text-light shadow-sm">
     <div class="mb-3">
-        <input type="text" name="description" class="form-control" placeholder="Description" required>
+        <input type="text" name="description" class="form-control bg-secondary text-light border-0" placeholder="Description" required>
     </div>
     <div class="mb-3">
-        <input type="text" id="label-select" name="label" placeholder="Type or select labels" required>
+        <input type="text" id="label-select" name="label" class="form-control bg-secondary text-light border-0" placeholder="Type or select labels" required>
     </div>
     <div class="mb-3">
-        <input type="number" step="0.01" name="amount" class="form-control" placeholder="Amount" required>
+        <input type="number" step="0.01" name="amount" class="form-control bg-secondary text-light border-0" placeholder="Amount" required>
     </div>
     <div class="mb-3">
-        <select name="type" class="form-select" required>
+        <select name="type" class="form-select bg-secondary text-light border-0" required>
             <option value="income">Income</option>
             <option value="expense">Expense</option>
         </select>
     </div>
-    <button type="submit" class="btn btn-success">Add Transaction</button>
+    <button type="submit" class="btn btn-success rounded-pill shadow-sm">Add Transaction</button>
 </form>
 {% endif %}
 
-<hr>
-<h5>Your Recent Transactions</h5>
-<table class="table table-dark table-striped">
-    <thead>
-        <tr>
-            <th>Date</th>
-            <th>Description</th>
-            <th>Label</th>
-            <th>Amount</th>
-            <th>Type</th>
-            <th></th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for t in transactions %}
-        <tr>
-            <td>{{ t.date.strftime('%Y-%m-%d %H:%M') }}</td>
-            <td>{{ t.description }}</td>
-            <td>
-                {% for label in t.labels %}
-                    <span class="badge bg-info me-1">{{ label.name }}</span>
+<!-- Transaction Table -->
+<div class="card shadow-sm bg-dark text-light mb-4">
+    <div class="card-header border-secondary">
+        <h5 class="mb-0">💸 Your Recent Transactions</h5>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-dark table-striped align-middle mb-0">
+            <thead class="table-secondary text-dark">
+                <tr>
+                    <th>Date</th>
+                    <th>Description</th>
+                    <th>Labels</th>
+                    <th>Amount</th>
+                    <th>Type</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in transactions %}
+                <tr>
+                    <td>{{ t.date.strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td>{{ t.description }}</td>
+                    <td>
+                        {% for label in t.labels %}
+                        <span class="badge bg-info text-dark me-1">{{ label.name }}</span>
+                        {% endfor %}
+                    </td>
+                    <td>{{ t.amount }}</td>
+                    <td>
+                        {% if t.type == 'income' %}
+                        <span class="badge bg-success">{{ t.type }}</span>
+                        {% else %}
+                        <span class="badge bg-danger">{{ t.type }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        <div class="d-inline-flex gap-1">
+                            <form action="{{ url_for('delete_transaction', tid=t.id) }}" method="post" class="m-0">
+                                <button class="btn btn-sm btn-danger rounded-pill shadow-sm">Delete</button>
+                            </form>
+                            <a href="{{ url_for('edit_transaction', tid=t.id) }}" class="btn btn-sm btn-warning rounded-pill shadow-sm">Edit</a>
+                        </div>
+                    </td>
+                </tr>
                 {% endfor %}
-            </td>
-            <td>{{ t.amount }}</td>
-            <td>{{ t.type }}</td>
-            <td>
-                <div class="d-flex gap-1">
-                    <form action="{{ url_for('delete_transaction', tid=t.id) }}" method="post">
-                        <button class="btn btn-sm btn-danger">Delete</button>
-                    </form>
-                    <a href="{{ url_for('edit_transaction', tid=t.id) }}" class="btn btn-sm btn-warning">Edit</a>
-                </div>
-            </td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+            </tbody>
+        </table>
+    </div>
+</div>
 
 <script>
 document.addEventListener("DOMContentLoaded", function() {
     const existingLabels = {{ user_labels|map(attribute='name')|list|tojson }};
-
     {% if transaction %}
     new TomSelect("#label-edit", {
         persist: true,
@@ -166,14 +184,6 @@ document.addEventListener("DOMContentLoaded", function() {
         maxItems: null,
         plugins: ['remove_button'],
         options: existingLabels.map(label => ({ value: label, text: label })),
-        render: {
-            item: function(data, escape) {
-                return '<div class="badge bg-secondary me-1">' + escape(data.text) + '</div>';
-            },
-            option: function(data, escape) {
-                return '<div>' + escape(data.text) + '</div>';
-            }
-        }
     });
     {% else %}
     new TomSelect("#label-select", {
@@ -182,14 +192,6 @@ document.addEventListener("DOMContentLoaded", function() {
         maxItems: null,
         plugins: ['remove_button'],
         options: existingLabels.map(label => ({ value: label, text: label })),
-        render: {
-            item: function(data, escape) {
-                return '<div class="badge bg-secondary me-1">' + escape(data.text) + '</div>';
-            },
-            option: function(data, escape) {
-                return '<div>' + escape(data.text) + '</div>';
-            }
-        }
     });
     {% endif %}
 });
