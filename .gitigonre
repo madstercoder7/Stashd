@@ -6,3 +6,4 @@ venv/
 *.log
 *.pyc
 instance/
+.vscode/
