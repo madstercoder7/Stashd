@@ -1,11 +1,14 @@
+#Imports
 from flask import current_app as app
 from flask import flash
 from itsdangerous import URLSafeTimedSerializer
 from flask_mail import Mail, Message\
 
+# Initializing mail server
 mail = Mail()
 
 def send_reset_email(to_email, reset_url):
+    # Sends reset mail if the user doesnt knwo its password
     msg = Message("Password Reset Request", recipients=[to_email])
     msg.body = f"""To reset your password, click the following link:
     {reset_url}
@@ -20,6 +23,7 @@ def send_reset_email(to_email, reset_url):
 
 
 def generate_reset_token(user_email, expires_sec=3600):
+    # Generates a token which is used in the link for reset mail
     s = URLSafeTimedSerializer(app.config["SECRET_KEY"])
     return s.dumps(user_email, salt="password-reset-salt")
 
