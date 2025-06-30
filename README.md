@@ -6,17 +6,17 @@ Stashd is a web application that helps you master your money, achieve your savin
 
 ## 🚀 Features
 
-✅ User registrationa and authentication (login, logout, register)
-✅ Profile management with password change
-✅ Add, edit, delete transactions
-✅ Assign labels (tags) to transactions
-✅ Filter transactions by date, type and description
-✅ View recent transactions in a sortable table
-✅ Export transactions to CSV
-✅ Set personal saving goals
-✅ Responseive dark-themed UI with Bootstrap 5
-✅ Flash messages via Bootstrap Toasts for success/error feedback
-✅ Uses Tom Select for multi-label inputs with existing label suggestions
+- ✅ User registrationa and authentication (login, logout, register)
+- ✅ Profile management with password change
+- ✅ Add, edit, delete transactions
+- ✅ Assign labels (tags) to transactions
+- ✅ Filter transactions by date, type and description
+- ✅ View recent transactions in a sortable table
+- ✅ Export transactions to CSV
+- ✅ Set personal saving goals
+- ✅ Responseive dark-themed UI with Bootstrap 5
+- ✅ Flash messages via Bootstrap Toasts for success/error feedback
+- ✅ Uses Tom Select for multi-label inputs with existing label suggestions
 
 ---
 
