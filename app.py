@@ -80,6 +80,12 @@ class LoginForm(FlaskForm):
     password = PasswordField("Password", validators=[DataRequired()])
     submit = SubmitField("Login")
 
+class ChangePasswordForm(FlaskForm):
+    current_password = PasswordField("Current Password", validators=[DataRequired()])
+    new_password = PasswordField("New Password", validators=[DataRequired(), Length(min=6)])
+    confirm_password = PasswordField("Confirm New Password", validators=[DataRequired(), EqualTo("new_password")])
+    submit = SubmitField("Change Password")
+
 @app.route("/")
 def home():
     return render_template("landing.html")
@@ -340,6 +346,20 @@ def delete_transaction(tid):
     db.session.commit()
     flash("Transaction deleted", "info")
     return redirect(url_for("dashboard"))
+
+@app.route("/change_password", methods=["GET", "POST"])
+def change_password():
+    form = ChangePasswordForm()
+    if form.validate_on_submit():
+        if bcrypt.check_password_hash(current_user.password, form.current_password.data):
+            hashed_pw = bcrypt.generate_password_hash(form.new_password.data).decode("utf-8")
+            current_user.password = hashed_pw
+            db.session.commit()
+            flash("Your password has been updated", "success")
+            return redirect(url_for("profile"))
+        else:
+            flash("Incorrect current password", "danger")
+    return render_template("change_password.html", form=form)
 
 if __name__ == "__main__":
     app.run(debug=True)

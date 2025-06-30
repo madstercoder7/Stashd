@@ -8,4 +8,5 @@
     <p><strong>Email:</strong> {{ user.email }}</p>
     <p><strong>Date Joined:</strong> {{ user.date_joined.strftime('%Y-%m-%d') }}</p>
 </div>
+<a href="{{ url_for('change_password') }}" class="btn btn-warning">Change Password</a>
 {% endblock %}
