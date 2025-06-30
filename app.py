@@ -1,6 +1,9 @@
+# Imports
 import os
+import csv
+from io import StringIO
 from datetime import datetime, timedelta
-from flask import Flask, render_template, request, redirect, url_for, session, flash, abort, jsonify
+from flask import Flask, Response, render_template, request, redirect, url_for, session, flash, abort, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
@@ -15,14 +18,18 @@ from flask_limiter.util import get_remote_address
 from flask_limiter.errors import RateLimitExceeded
 from dotenv import load_dotenv
 from datetime import datetime
+
+# Helper imports
 from utils import send_reset_email, verify_reset_token, generate_reset_token, mail
 
+# Load .env files
 load_dotenv()
 
+# Initialize the app
 app = Flask(__name__)
 
-app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=5)
-app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=5) # Maximum 5 minutes of a session
+app.config["SECRET_KEY"] = os.getenv("SECRET_KEY") 
 app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("SQLALCHEMY_DATABASE_URI")
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["MAIL_SERVER"] = "smtp.gmail.com"
@@ -38,17 +45,18 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
 if not app.config["SECRET_KEY"]:
     raise ValueError("No SECRET_KEY set for Flask application")
-
-db = SQLAlchemy(app)
-migrate = Migrate(app, db)
-mail.init_app(app)
-bcrypt = Bcrypt(app)
-login_manager = LoginManager(app)
-login_manager.login_view = "login"
+ 
+db = SQLAlchemy(app) # Initialzie the database
+migrate = Migrate(app, db) # Initialize migrations
+mail.init_app(app) # Initialize the mail server in the app
+bcrypt = Bcrypt(app) 
+login_manager = LoginManager(app) # Initialize the login manager
+login_manager.login_view = "login" 
 login_manager.login_message_category = "info"
 
 @app.before_request
 def warm_db():
+    # Warm up the databse 
     if request.endpoint in ('static', None) or request.path == '/favicon.ico':
         return
     
@@ -92,15 +100,16 @@ class Goal(db.Model):
     saved_amount = db.Column(db.Float, default=0)
     status = db.Column(db.String(20), default="active")
 
-with app.app_context():
-    db.create_all()
+with app.app_context(): 
+    db.create_all() # Create all the tables
 
-REDIS_URL = os.getenv("REDIS_URL")
-limiter = Limiter(get_remote_address, app=app, default_limits=["200 per day", "50 per day"], storage_uri=REDIS_URL)
-limiter.init_app(app)
+REDIS_URL = os.getenv("REDIS_URL") # Initialize the Redis URL
+limiter = Limiter(get_remote_address, app=app, default_limits=["200 per day", "50 per day"], storage_uri=REDIS_URL) # Initialize the rate limiter
+limiter.init_app(app) # Initialize the limiter to the app
 
 @app.errorhandler(RateLimitExceeded)
 def ratelimit_handler(e):
+    # Returns jsonified error if rate limit exceeded
     return jsonify({
         "error": "Too many requests. Please slow down",
         "message": str(e.description)
@@ -140,11 +149,13 @@ class ResetPasswordForm(FlaskForm):
 
 @app.route("/")
 def home():
+    # Landing page
     return render_template("landing.html")
 
 @app.route("/register", methods=["GET", "POST"])
 @limiter.limit("10 per minute")
 def register():
+    # Register page
     form = RegisterForm()
     if request.method == "POST":    
         if form.validate_on_submit():
@@ -174,6 +185,7 @@ def register():
 @app.route("/login", methods=["GET", "POST"])
 @limiter.limit("10 per minute")
 def login():
+    # Login Page
     form = LoginForm()
     if form.validate_on_submit():
         user = User.query.filter_by(username=form.username.data.strip()).first()
@@ -191,6 +203,7 @@ def login():
 @login_required
 @limiter.limit("20 per minute")
 def dashboard():
+    # Dashboard page
     if request.method == "POST":
         if "description" in request.form:
             desc = request.form["description"].strip().lower()
@@ -267,6 +280,7 @@ def dashboard():
 @login_required
 @limiter.limit("10 per minute")
 def delete_goal(gid):
+    # Delete goal 
     goal = Goal.query.filter_by(id=gid, user_id=current_user.id).first_or_404()
     if not goal:
         abort(404)
@@ -280,11 +294,13 @@ def delete_goal(gid):
 @login_required
 @limiter.limit("10 per minute")
 def profile():
+    # Profile Page
     return render_template("profile.html", user=current_user)
 
 @app.route("/logout")
 @login_required
 def logout():
+    # Logout
     logout_user()
     flash("You have been logged out", "info")
     return redirect(url_for("home"))
@@ -293,6 +309,7 @@ def logout():
 @login_required
 @limiter.limit("10 per minute")
 def add_transaction():
+    # Add transactions
     desc = request.form["description"].strip().lower()
     label_names = request.form.get("label", "").split(", ")
     amount = float(request.form["amount"])
@@ -337,6 +354,7 @@ def add_transaction():
 @login_required
 @limiter.limit("10 per minute")
 def edit_transaction(tid):
+    # Edit transactions
     transaction = Transaction.query.filter_by(id=tid, user_id=current_user.id).first_or_404()
 
     if request.method == "POST":
@@ -391,6 +409,7 @@ def edit_transaction(tid):
 @login_required
 @limiter.limit("10 per minute")
 def delete_transaction(tid):
+    # Delete transactions
     transaction = Transaction.query.filter_by(id=tid, user_id=current_user.id).first_or_404()
     if not transaction:
        abort(404)
@@ -418,6 +437,7 @@ def delete_transaction(tid):
 @login_required
 @limiter.limit("2 per minute")
 def change_password():
+    # Change password with knowing current one
     form = ChangePasswordForm()
     if form.validate_on_submit():
         if bcrypt.check_password_hash(current_user.password, form.current_password.data):
@@ -432,6 +452,7 @@ def change_password():
 
 @app.route("/forgot_password", methods=["GET", "POST"])
 def forgot_password():
+    # Request for change password without knowing current one
     form = ForgotPasswordForm()
     if form.validate_on_submit():
         user = User.query.filter_by(email=form.email.data).first()
@@ -447,6 +468,7 @@ def forgot_password():
 
 @app.route("/reset_password/<token>", methods=["GET", "POST"])
 def reset_password(token):
+    # Reset password as current one is forgotten
     email = verify_reset_token(token)
     if not email:
         flash("The reset link is invalid or has expired", "danger")
@@ -461,6 +483,34 @@ def reset_password(token):
         flash("Your password has been updated, you can now login", "success")
         return redirect(url_for("login"))
     return render_template("reset_password.html", form=form)
+
+@app.route("/export")
+@login_required
+@limiter.limit("5 per minute")
+def export_transaction():
+    # Export transactions to a CSV file
+    transactions = Transaction.query.filter_by(user_id=current_user.id).order_by(Transaction.date.desc()).all()
+
+    output = StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Date", "Description", "Amount", "Type", "Label"])
+
+    for t in transactions:
+        label_names = ", ".join([label.name for label in t.labels])
+        writer.writerow([
+            t.date.strftime("%Y-%m-%d %H:%M"),
+            t.description,
+            t.amount,
+            t.type,
+            label_names
+        ])  
+
+    output.seek(0)
+    return Response(
+        output,
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment;filename=transactions.csv"}
+    )
 
 if __name__ == "__main__":
     app.run(debug=True)

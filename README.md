@@ -17,6 +17,7 @@ https://stashd.onrender.com/
 ✅ Supabase PostgreSQL integration for cloud storage
 ✅ Forgot and reset password functionality
 ✅ Responsive web interface
+✅ Export transactions to CSV file
 
 ---
 

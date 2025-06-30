@@ -3,57 +3,82 @@ html, body {
     color: #f8f9fa;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     overflow-x: hidden;
+    height: 100%;
+    margin: 0;
+    padding: 0;
 }
 
+.container {
+    background-color: #121212 !important;
+    min-height: 100vh;
+    padding-bottom: 2rem;
+}
+
+.card {
+    border: 1px solid #2c2c2c;
+    border-radius: 0.5rem;
+}
+
+
+
+/* Consistent container and cards styling */
 .container, .card, .accordion, .accordion-item, .accordion-button, .table, .card-header, .card-body, .accordion-body {
     background-color: #121212 !important;
     color: #f8f9fa !important;
 }
 
-.accordion-button.collapsed {
+/* Accordion collapsed/open styling */
+.accordion-button.collapsed,
+.accordion-button:not(.collapsed),
+.accordion-item,
+.accordion-body {
     background-color: #1e1e1e !important;
+    color: #f8f9fa !important;
+    border-radius: 8px;
 }
 
-.accordion-button:not(.collapsed) {
-    background-color: #1e1e1e !important;
-}
-
-.form-control, .form-select {
+/* Inputs and selects unified */
+.form-control, .form-select, input, select {
     background-color: #1e1e1e !important;
     color: #f8f9fa !important;
     border: 1px solid #444 !important;
+    border-radius: 6px;
+    padding: 0.5rem;
 }
 
-.form-control::placeholder, .form-select::placeholder {
+/* Placeholder styling */
+.form-control::placeholder, .form-select::placeholder, input::placeholder {
     color: #cccccc !important;
 }
 
+/* Form label styling */
 .form-label {
     color: #f8f9fa !important;
+    margin-bottom: 0.25rem;
 }
 
+/* Focus state for inputs */
 .form-control:focus, .form-select:focus {
     box-shadow: none;
     border-color: #888 !important;
 }
 
-a, .nav-link {
-    color: #f8f9fa;
-}
-
-.navbar-dark .navbar-nav, .nav-link {
+/* Navbar links */
+.navbar-dark .navbar-nav .nav-link {
     color: #f8f9fa;
     transition: color 0.2s;
 }
 
-.navbar-dark, .navbar-nav, .nav-link:hover {
+.navbar-dark .navbar-nav .nav-link:hover {
     color: #00d1b2;
 }
 
+/* Toast styling */
 .toast {
     opacity: 0.95;
 }
 
+/* Landing hero banner styling */
 .landing-hero {
     position: relative;
     color: #fff;
@@ -68,7 +93,6 @@ a, .nav-link {
     background: linear-gradient(135deg, #0d6efd 0%, #6610f2 100%);
     padding: 2rem;
     margin: 0;
-    box-shadow: none;
     border-radius: 15px;
 }
 
@@ -99,6 +123,28 @@ a, .nav-link {
     font-weight: 500;
 }
 
-.landing-hero h1, .landing-hero p {
-    text-shadow: 0 2px 5px rgba(0, 0, 0, 0,7);
+/* Table header styling */
+.table thead {
+    background-color: #1f2937 !important;
+    color: #f9fafb !important;
+}
+
+/* Section spacing for consistent layout */
+section, .card, .accordion, form {
+    margin-bottom: 2rem;
+}
+
+/* Actions buttons spacing */
+.actions button, .actions a, .d-inline-flex .btn {
+    margin-right: 0.5rem;
+}
+
+/* Toast container z-index so it stays above content */
+#toast-container {
+    z-index: 9999;
+}
+
+/* Badge colors for transaction labels */
+.badge.bg-info {
+    color: #111 !important;
 }

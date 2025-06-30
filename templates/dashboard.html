@@ -165,6 +165,7 @@
                                 <button class="btn btn-sm btn-danger rounded-pill shadow-sm">Delete</button>
                             </form>
                             <a href="{{ url_for('edit_transaction', tid=t.id) }}" class="btn btn-sm btn-warning rounded-pill shadow-sm">Edit</a>
+                            <a href="{{ url_for('export_transaction') }}" class="btn btn-primary rounded-pill shadow-sm">Export Transactions to CSV</a>
                         </div>
                     </td>
                 </tr>
