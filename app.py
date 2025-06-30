@@ -1,5 +1,6 @@
 import os
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from datetime import datetime, timedelta
+from flask import Flask, render_template, request, redirect, url_for, session, flash, abort
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SubmitField
@@ -9,6 +10,7 @@ from flask_login import LoginManager, login_user, logout_user, login_required, U
 from flask_migrate import Migrate
 from dotenv import load_dotenv
 from datetime import datetime
+from utils import send_reset_email, verify_reset_token, generate_reset_token, mail
 
 load_dotenv()
 
@@ -17,9 +19,17 @@ app = Flask(__name__)
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
 app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("SQLALCHEMY_DATABASE_URI")
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.config["MAIL_SERVER"] = "smtp.gmail.com"
+app.config["MAIL_PORT"] = 587
+app.config["MAIL_USE_TLS"] = True
+app.config["MAIL_USE_SSL"] = False
+app.config["MAIL_USERNAME"] = os.getenv("MAIL_USERNAME")
+app.config["MAIL_PASSWORD"] = os.getenv("MAIL_PASSWORD")
+app.config["MAIL_DEFAULT_SENDER"] = os.getenv("MAIL_USERNAME")
 
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
+mail.init_app(app)
 bcrypt = Bcrypt(app)
 login_manager = LoginManager(app)
 login_manager.login_view = "login"
@@ -85,6 +95,15 @@ class ChangePasswordForm(FlaskForm):
     new_password = PasswordField("New Password", validators=[DataRequired(), Length(min=6)])
     confirm_password = PasswordField("Confirm New Password", validators=[DataRequired(), EqualTo("new_password")])
     submit = SubmitField("Change Password")
+
+class ForgotPasswordForm(FlaskForm):
+    email = StringField("Email", validators=[DataRequired(), Email()])
+    submit = SubmitField("Request Password Reset")
+
+class ResetPasswordForm(FlaskForm):
+    password = PasswordField("New Password", validators=[DataRequired(), Length(min=6)])
+    confirm_password = PasswordField("Confirm New Password", validators=[DataRequired(), EqualTo("password")])
+    submit = SubmitField("Reset Password")
 
 @app.route("/")
 def home():
@@ -212,6 +231,9 @@ def dashboard():
 @login_required
 def delete_goal(gid):
     goal = Goal.query.filter_by(id=gid, user_id=current_user.id).first_or_404()
+    if not goal:
+        abort(404)
+
     db.session.delete(goal)
     db.session.commit()
     flash("Goal deleted", "info")
@@ -327,6 +349,8 @@ def edit_transaction(tid):
 @login_required
 def delete_transaction(tid):
     transaction = Transaction.query.filter_by(id=tid, user_id=current_user.id).first_or_404()
+    if not transaction:
+       abort(404)
 
     for label in transaction.labels:
         goal = Goal.query.filter_by(user_id=current_user.id, name=label.name).first()
@@ -360,6 +384,38 @@ def change_password():
         else:
             flash("Incorrect current password", "danger")
     return render_template("change_password.html", form=form)
+
+@app.route("/forgot_password", methods=["GET", "POST"])
+def forgot_password():
+    form = ForgotPasswordForm()
+    if form.validate_on_submit():
+        user = User.query.filter_by(email=form.email.data).first()
+        if user:
+            token = generate_reset_token(user.email)
+            reset_url = url_for("reset_password", token=token, _external=True)
+            send_reset_email(user.email, reset_url)
+            flash(f"A password reset email has been sent to your registered email: {user.email}", "info")
+        else:
+            flash("Email not found", "danger")
+        return redirect(url_for("login"))
+    return render_template("forgot_password.html", form=form)
+
+@app.route("/reset_password/<token>", methods=["GET", "POST"])
+def reset_password(token):
+    email = verify_reset_token(token)
+    if not email:
+        flash("The reset link is invalid or has expired", "danger")
+        return redirect(url_for("forgot_password"))
+    
+    form = ResetPasswordForm()
+    if form.validate_on_submit():
+        user = User.query.filter_by(email=email).first_or_404()
+        hashed_pw = bcrypt.generate_password_hash(form.password.data).decode("utf-8")
+        user.password = hashed_pw
+        db.session.commit()
+        flash("Your password has been updated, you can now login", "success")
+        return redirect(url_for("login"))
+    return render_template("reset_password.html", form=form)
 
 if __name__ == "__main__":
     app.run(debug=True)

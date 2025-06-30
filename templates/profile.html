@@ -6,7 +6,7 @@
 <div class="card p-4 mt-3 text-bg-dark">
     <p><strong>Username:</strong> {{ user.username }}</p>
     <p><strong>Email:</strong> {{ user.email }}</p>
-    <p><strong>Date Joined:</strong> {{ user.date_joined.strftime('%Y-%m-%d') }}</p>
+    <p><strong>Date Joined:</strong> {{ user.date_joined.strftime('%Y-%m-%d %H:%M') }}</p>
 </div>
 <a href="{{ url_for('change_password') }}" class="btn btn-warning">Change Password</a>
 {% endblock %}

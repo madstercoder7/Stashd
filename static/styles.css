@@ -14,7 +14,7 @@ html, body {
     background-color: #1e1e1e !important;
 }
 
-.accrodion-button:not(.collapsed) {
+.accordion-button:not(.collapsed) {
     background-color: #1e1e1e !important;
 }
 
