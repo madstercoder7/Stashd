@@ -9,3 +9,4 @@ Flask-Mail
 gunicorn
 Flask-Bcrypt
 psycopg2-binary
+Flask-Limiter
