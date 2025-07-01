@@ -317,7 +317,7 @@ def add_transaction():
 
     labels = [] # Initializes the labels array
     for label_name in label_names: 
-        label_name = label_name.strizp().lower()
+        label_name = label_name.strip().lower()
         if not label_name:
             continue
 
